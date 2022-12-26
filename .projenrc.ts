@@ -1,12 +1,34 @@
-import { typescript } from 'projen';
+import { typescript, awscdk, vscode } from 'projen';
 const project = new typescript.TypeScriptProject({
   defaultReleaseBranch: 'main',
   name: 'stock-wallet',
   projenrcTs: true,
-
-  // deps: [],                /* Runtime dependencies of this module. */
-  // description: undefined,  /* The description is just a string that helps people understand the purpose of the package. */
-  // devDeps: [],             /* Build dependencies for this module. */
-  // packageName: undefined,  /* The "name" in package.json. */
 });
+
+const vscodeSettings = new vscode.VsCodeSettings(project.vscode!);
+vscodeSettings.addSetting('files.exclude', {
+  '**/.git': true,
+  '**/.svn': true,
+  '**/.hg': true,
+  '**/CVS': true,
+  '**/.DS_Store': true,
+  '**/Thumbs.db': true,
+  '**/node_modules': true,
+});
+
+new awscdk.AwsCdkTypeScriptApp({
+  cdkVersion: '2.56.1',
+  defaultReleaseBranch: 'main',
+  name: 'backend',
+  parent: project,
+  outdir: 'backend',
+  deps: [
+    '@types/aws-lambda',
+    '@aws-sdk/util-dynamodb',
+    '@aws-sdk/client-dynamodb',
+    '@aws-lambda-powertools/logger',
+    'source-map-support',
+  ],
+});
+
 project.synth();
