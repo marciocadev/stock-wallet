@@ -20,18 +20,25 @@ export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
 
     let t = item.type.startsWith('BUY#') ? item.total : (item.total * -1);
     let q = item.type.startsWith('BUY#') ? item.quantity : (item.quantity * -1);
+    let c = item.coin;
 
     let input: UpdateItemCommandInput = {
       TableName: process.env.TABLE_NAME,
       Key: marshall({ stock: key.stock, type: 'TOTAL' }),
-      UpdateExpression: `ADD #amount :t, #quantity :q`,
+      // UpdateExpression: `ADD #amount :t, #quantity :q`,
+      UpdateExpression: `SET #amount = if_not_exists(#amount, :z) + :t,
+        #quantity = if_not_exists(#quantity, :z) + :q,
+        #coin = :c`,
       ExpressionAttributeNames: {
         '#amount': 'amount',
         '#quantity': 'quantity',
+        '#coin': 'coin',
       },
       ExpressionAttributeValues: marshall({
+        ':z': 0,
         ':t': t,
         ':q': q,
+        ':c': c,
       }),
       ReturnValues: 'ALL_NEW',
     };
@@ -41,6 +48,11 @@ export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
     const result = await dynamo.send(new UpdateItemCommand(input));
     logger.info('result', { object: result });
 
-    return result.Attributes;
+    const body = unmarshall(result.Attributes as any);
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify(body),
+    };
   }
 }

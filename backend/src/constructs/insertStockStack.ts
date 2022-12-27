@@ -2,8 +2,7 @@ import { Aws, Duration, NestedStack, NestedStackProps } from 'aws-cdk-lib';
 import { AwsIntegration, IntegrationOptions, JsonSchema, JsonSchemaType, JsonSchemaVersion, Model, RequestValidator, Resource, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { Table } from 'aws-cdk-lib/aws-dynamodb';
 import { Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
-import { FilterCriteria, FilterRule, StartingPosition } from 'aws-cdk-lib/aws-lambda';
-import { LambdaDestination } from 'aws-cdk-lib/aws-lambda-destinations';
+import { FilterCriteria, FilterRule, StartingPosition, Tracing } from 'aws-cdk-lib/aws-lambda';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
@@ -22,10 +21,11 @@ export class InsertStockStack extends NestedStack {
 
     const { table, rest, validator, resource } = props;
 
-    const meanPriceLmb = new NodejsFunction(this, 'MeanPrice', {
-      functionName: 'mean-price',
-      entry: join(__dirname, '../lambda/mean-price/index.ts'),
+    const meanPriceLmb = new NodejsFunction(this, 'AveragePrice', {
+      functionName: 'average-price',
+      entry: join(__dirname, '../lambda/average-price/index.ts'),
       handler: 'handler',
+      timeout: Duration.seconds(30),
       environment: {
         TABLE_NAME: table.tableName,
       },
@@ -33,7 +33,21 @@ export class InsertStockStack extends NestedStack {
         minify: true,
         sourceMap: true,
       },
+      tracing: Tracing.ACTIVE,
     });
+    meanPriceLmb.addEventSource(new DynamoEventSource(table, {
+      startingPosition: StartingPosition.LATEST,
+      filters: [
+        FilterCriteria.filter({
+          eventName: FilterRule.or('INSERT', 'MODIFY'),
+          dynamodb: {
+            Keys: {
+              type: { S: FilterRule.beginsWith("TOTAL") },
+            },
+          },
+        }),
+      ],
+    }));
     table.grantWriteData(meanPriceLmb);
 
     const quantityLmb = new NodejsFunction(this, 'SumQuantityStock', {
@@ -48,7 +62,7 @@ export class InsertStockStack extends NestedStack {
         minify: true,
         sourceMap: true,
       },
-      onSuccess: new LambdaDestination(meanPriceLmb),
+      tracing: Tracing.ACTIVE,
     });
     quantityLmb.addEventSource(new DynamoEventSource(table, {
       startingPosition: StartingPosition.LATEST,
@@ -57,9 +71,7 @@ export class InsertStockStack extends NestedStack {
           eventName: FilterRule.isEqual('INSERT'),
           dynamodb: {
             Keys: {
-              type: {
-                S: FilterRule.beginsWith("BUY#")
-              },
+              type: { S: FilterRule.beginsWith("BUY#") },
             },
           },
         }),
@@ -67,9 +79,7 @@ export class InsertStockStack extends NestedStack {
           eventName: FilterRule.isEqual('INSERT'),
           dynamodb: {
             Keys: {
-              type: {
-                S: FilterRule.beginsWith("SELL#")
-              },
+              type: { S: FilterRule.beginsWith("SELL#") },
             },
           },
         }),
@@ -89,11 +99,12 @@ export class InsertStockStack extends NestedStack {
       properties: {
         stock: { type: JsonSchemaType.STRING },
         type: { type: JsonSchemaType.STRING },
+        coin: { type: JsonSchemaType.STRING },
         quantity: { type: JsonSchemaType.INTEGER },
         amount: { type: JsonSchemaType.NUMBER },
         date: { type: JsonSchemaType.STRING },
       },
-      required: ['stock', 'operation', 'quantity', 'amount'],
+      required: ['stock', 'coin', 'operation', 'quantity', 'amount'],
     };
 
     const model: Model = new Model(this, 'PostModel', {
@@ -117,6 +128,7 @@ export class InsertStockStack extends NestedStack {
             "Item": {
               "stock":{"S":"$input.path('$.stock').toUpperCase()"},
               "type":{"S":"$type"},
+              "coin":{"S":"$input.path('$.coin').toUpperCase()"},
               "quantity":{"N":"$input.path('$.quantity')"},
               "amount":{"N":"$input.path('$.amount')"},
               "date":{"S":"$input.path('$.date')"},
