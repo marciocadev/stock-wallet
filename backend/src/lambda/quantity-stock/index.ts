@@ -1,8 +1,8 @@
 import 'source-map-support/register';
-import { DynamoDBStreamEvent, Context } from 'aws-lambda';
+import { Logger } from '@aws-lambda-powertools/logger';
 import { DynamoDBClient, UpdateItemCommandInput, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { Logger } from '@aws-lambda-powertools/logger';
+import { DynamoDBStreamEvent, Context } from 'aws-lambda';
 
 const logger = new Logger({ serviceName: 'stocks', logLevel: 'INFO' });
 const dynamo = new DynamoDBClient({ region: process.env.AWS_REGION });
@@ -55,4 +55,4 @@ export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
       body: JSON.stringify(body),
     };
   }
-}
+};

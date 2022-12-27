@@ -1,24 +1,24 @@
-import { Aws, NestedStack, NestedStackProps } from 'aws-cdk-lib';
-import { AwsIntegration, IntegrationOptions, JsonSchema, JsonSchemaType, JsonSchemaVersion, Model, RequestValidator, Resource, RestApi } from 'aws-cdk-lib/aws-apigateway';
-import { Table } from 'aws-cdk-lib/aws-dynamodb';
-import { Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
-import { FilterCriteria, FilterRule, StartingPosition, Tracing } from 'aws-cdk-lib/aws-lambda';
-import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
-import { Construct } from 'constructs';
-import { StockFunction } from './stock-lambda';
+import { Aws, NestedStack, NestedStackProps } from "aws-cdk-lib";
+import { AwsIntegration, IntegrationOptions, JsonSchema, JsonSchemaType, JsonSchemaVersion, Model, RequestValidator, Resource, RestApi } from "aws-cdk-lib/aws-apigateway";
+import { Table } from "aws-cdk-lib/aws-dynamodb";
+import { Construct } from "constructs";
+import { StockFunction } from "./constructs/stock-lambda";
+import { FilterCriteria, FilterRule, StartingPosition } from "aws-cdk-lib/aws-lambda";
+import { DynamoEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
+import { Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 
-export interface InsertStockStackProps extends NestedStackProps {
+export interface StockStackProps extends NestedStackProps {
   table: Table;
   rest: RestApi;
   validator: RequestValidator;
   resource: Resource;
 };
 
-export class InsertStockStack extends NestedStack {
-  constructor(scope: Construct, id: string, props: InsertStockStackProps) {
+export class StockStack extends NestedStack {
+  constructor(scope: Construct, id: string, props?: StockStackProps) {
     super(scope, id, props);
 
-    const { table, rest, validator, resource } = props;
+    const { table, rest, validator, resource } = props!;
 
     const averageStockPriceLmb = new StockFunction(this, 'AverageStockPrice', {
       environment: { TABLE_NAME: table.tableName },

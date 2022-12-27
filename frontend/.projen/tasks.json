@@ -5,9 +5,6 @@
       "description": "Full release build",
       "steps": [
         {
-          "spawn": "default"
-        },
-        {
           "spawn": "pre-compile"
         },
         {
@@ -24,22 +21,19 @@
         }
       ]
     },
-    "bump": {
-      "name": "bump",
-      "description": "Bumps version based on latest git tag and generates a changelog entry",
-      "env": {
-        "OUTFILE": "package.json",
-        "CHANGELOG": "dist/changelog.md",
-        "BUMPFILE": "dist/version.txt",
-        "RELEASETAG": "dist/releasetag.txt",
-        "RELEASE_TAG_PREFIX": ""
-      },
+    "build-all": {
+      "name": "build-all",
       "steps": [
         {
-          "builtin": "release/bump-version"
+          "spawn": "eslint"
+        },
+        {
+          "spawn": "postcss:build"
+        },
+        {
+          "spawn": "build"
         }
-      ],
-      "condition": "! git log --oneline -1 | grep -q \"chore(release):\""
+      ]
     },
     "clobber": {
       "name": "clobber",
@@ -78,7 +72,7 @@
       "description": "Only compile",
       "steps": [
         {
-          "exec": "tsc --build"
+          "exec": "react-scripts build"
         }
       ]
     },
@@ -87,15 +81,16 @@
       "description": "Synthesize project files",
       "steps": [
         {
-          "exec": "ts-node --project tsconfig.dev.json .projenrc.ts"
+          "exec": "node .projenrc.js"
         }
       ]
     },
-    "deploy-backend": {
-      "name": "deploy-backend",
+    "dev": {
+      "name": "dev",
+      "description": "Starts the react application",
       "steps": [
         {
-          "exec": "cd backend && cdk deploy --require-approval never"
+          "exec": "react-scripts start"
         }
       ]
     },
@@ -116,21 +111,13 @@
       "description": "Runs eslint against the codebase",
       "steps": [
         {
-          "exec": "eslint --ext .ts,.tsx --fix --no-error-on-unmatched-pattern src test build-tools projenrc .projenrc.ts"
+          "exec": "eslint --ext .ts,.tsx --fix --no-error-on-unmatched-pattern src test build-tools .projenrc.js"
         }
       ]
     },
     "package": {
       "name": "package",
-      "description": "Creates the distribution package",
-      "steps": [
-        {
-          "exec": "mkdir -p dist/js"
-        },
-        {
-          "exec": "mv $(npm pack) dist/js/"
-        }
-      ]
+      "description": "Creates the distribution package"
     },
     "post-compile": {
       "name": "post-compile",
@@ -140,31 +127,31 @@
       "name": "post-upgrade",
       "description": "Runs after upgrading dependencies"
     },
+    "postcss:build": {
+      "name": "postcss:build",
+      "steps": [
+        {
+          "exec": "postcss src/App.css -o src/index.css"
+        }
+      ]
+    },
+    "postcss:watch": {
+      "name": "postcss:watch",
+      "steps": [
+        {
+          "exec": "postcss src/App.css -o src/index.css -w"
+        }
+      ]
+    },
     "pre-compile": {
       "name": "pre-compile",
       "description": "Prepare the project for compilation"
     },
-    "release": {
-      "name": "release",
-      "description": "Prepare a release from \"main\" branch",
-      "env": {
-        "RELEASE": "true"
-      },
+    "start": {
+      "name": "start",
       "steps": [
         {
-          "exec": "rm -fr dist"
-        },
-        {
-          "spawn": "bump"
-        },
-        {
-          "spawn": "build"
-        },
-        {
-          "spawn": "unbump"
-        },
-        {
-          "exec": "git diff --ignore-space-at-eol --exit-code"
+          "exec": "npm-run-all -p postcss:watch dev"
         }
       ]
     },
@@ -173,36 +160,10 @@
       "description": "Run tests",
       "steps": [
         {
-          "exec": "jest --passWithNoTests --updateSnapshot",
-          "receiveArgs": true
+          "spawn": "eslint"
         },
         {
-          "spawn": "eslint"
-        }
-      ]
-    },
-    "test:watch": {
-      "name": "test:watch",
-      "description": "Run jest in watch mode",
-      "steps": [
-        {
-          "exec": "jest --watch"
-        }
-      ]
-    },
-    "unbump": {
-      "name": "unbump",
-      "description": "Restores version to 0.0.0",
-      "env": {
-        "OUTFILE": "package.json",
-        "CHANGELOG": "dist/changelog.md",
-        "BUMPFILE": "dist/version.txt",
-        "RELEASETAG": "dist/releasetag.txt",
-        "RELEASE_TAG_PREFIX": ""
-      },
-      "steps": [
-        {
-          "builtin": "release/reset-version"
+          "exec": "react-scripts test --watchAll=false"
         }
       ]
     },

@@ -2,7 +2,7 @@ import { App, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import { RequestValidator, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { AttributeType, StreamViewType, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { Construct } from 'constructs';
-import { InsertStockStack } from './constructs/insertStockStack';
+import { StockStack } from './stock-stack';
 
 export class MyStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps = {}) {
@@ -33,11 +33,11 @@ export class MyStack extends Stack {
       validateRequestParameters: false,
     });
 
-    new InsertStockStack(this, 'InsertStockStack', {
-      table: table,
+    new StockStack(this, 'StockStack', {
+      resource: rest.root.addResource('stock'),
       rest: rest,
       validator: validator,
-      resource: rest.root.addResource('stock'),
+      table: table,
     });
   }
 }
